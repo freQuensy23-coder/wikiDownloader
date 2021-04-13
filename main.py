@@ -5,31 +5,61 @@ import pywikibot
 import logging
 from tqdm import tqdm
 
-site = pywikibot.Site('ru', 'wikipedia')
+import threading
+from ThreadingManager import *
 
+site = pywikibot.Site('ru', 'wikipedia')
 parser = "html5lib"
 
 
-def get_page_data(link):
-    r = requests.get(link)
-    soup = BS(r.content,  parser)
-    pages_area = soup.find("div", {"class":"mw-allpages-body"})
-    links = pages_area.find_all("a")
-    for tag_a in tqdm(links):
+def get_pages_data(pages: list, session=session, site=site):
+    """Get information about pages and save them to db
+    :param pages list of string - pages names
+    :param session SQLAlchemy session object
+    :param site pywikibot site object
+    :returns True if everything is good
+    """
+    for page_name in pages:
         try:
-            page_name = tag_a.get_text()
             pywiki_page = pywikibot.Page(site, page_name)
-            page = Page(title = pywiki_page.title(), text = pywiki_page.text)
+            page = Page(title=pywiki_page.title(), text=pywiki_page.text)
             session.add(page)
-        except:
-            logging.critical("Can't add to db", tag_a)
-    session.commit()
+        except Exception as e:
+            logging.critical(e)
+            logging.critical(f"Can't add to db {page_name}")
+    return True
+
+
+def get_pages(start_from = "") -> list:
+    """Get all pages from page of pages (ex. https://ru.wikipedia.org/w/index.php?title=Служебная:Все_страницы )
+    :param start_from return articles from one page, starting from start from
+    """
+    link = f"https://ru.wikipedia.org/w/index.php?title=Служебная:Все_страницы?from={start_from}"
+    r = requests.get(link)
+    soup = BS(r.content, parser)
+    pages_area = soup.find("div", {"class": "mw-allpages-body"})
+    page_names = pages_area.find_all("a")
+    for i, page_name in enumerate(page_names):
+        page_names[i] = page_name.get_text()
+    return page_names
 
 
 def main():
-    pass
+    global main_link
+    pages = get_pages("")
+    pages_tasks = tasks_divider(tasks=pages)
+    threads = generate_threads(pages_tasks, get_pages_data)
+    for t in threads: # start all threads
+        t.start()
+    for t in tqdm(threads):
+        t.join()  # Waiting for process end checking
+        # TODO Исправить прогрессбар. Он не должен ждать невыолненные потоки.
+    session.commit()
 
 
 if __name__ == '__main__':
-    main_link = "https://ru.wikipedia.org/w/index.php?title=%D0%A1%D0%BB%D1%83%D0%B6%D0%B5%D0%B1%D0%BD%D0%B0%D1%8F:%D0%92%D1%81%D0%B5_%D1%81%D1%82%D1%80%D0%B0%D0%BD%D0%B8%D1%86%D1%8B&from=.%E0%B9%84%E0%B8%97%E0%B8%A2"
-    get_page_data(main_link)
+    d = input("Delete everything from DB? (y/N)? ")
+    if d.strip().lower() == "y":
+        session.execute("DELETE from Pages WHERE 1;")
+        session.commit()
+    main()

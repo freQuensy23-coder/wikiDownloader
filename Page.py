@@ -7,7 +7,7 @@ from sqlalchemy.orm import relation, column_property
 from sqlalchemy.orm.session import sessionmaker
 import asyncio
 
-engine = create_engine(f"mysql://{user}:{password}@{host}/{db}?charset=utf8", echo=True, pool_recycle=25)
+engine = create_engine(f"mysql://{user}:{password}@{host}/{db}?charset=utf8", echo=False, pool_recycle=25)
 session = sessionmaker(bind=engine)()
 base = declarative_base()
 
