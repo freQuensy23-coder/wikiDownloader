@@ -12,3 +12,5 @@ soupsieve==2.2.1
 SQLAlchemy==1.4.7
 urllib3==1.26.4
 webencodings==0.5.1
+
+pywikibot~=6.0.1

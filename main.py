@@ -1,6 +1,11 @@
 import requests
 from bs4 import BeautifulSoup as BS
 from Page import *
+import pywikibot
+import logging
+from tqdm import tqdm
+
+site = pywikibot.Site('ru', 'wikipedia')
 
 parser = "html5lib"
 
@@ -10,10 +15,15 @@ def get_page_data(link):
     soup = BS(r.content,  parser)
     pages_area = soup.find("div", {"class":"mw-allpages-body"})
     links = pages_area.find_all("a")
-    for link in links:
-        print(link)
-        page = Page(link = link.get("href"), title = link.get_text())
-        print(page)
+    for tag_a in tqdm(links):
+        try:
+            page_name = tag_a.get_text()
+            pywiki_page = pywikibot.Page(site, page_name)
+            page = Page(title = pywiki_page.title(), text = pywiki_page.text)
+            session.add(page)
+        except:
+            logging.critical("Can't add to db", tag_a)
+    session.commit()
 
 
 def main():
