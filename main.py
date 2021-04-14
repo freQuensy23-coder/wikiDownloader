@@ -14,7 +14,7 @@ parser = "html5lib"
 # DATABASE
 timeout = 2147482
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 def get_pages_data(pages: list, session=session, site=site):
@@ -71,13 +71,15 @@ def main():
             # TODO Исправить прогрессбар. Он не должен ждать невыолненные потоки.
             # TODO Убрать повторние кода
         session.commit()
-        logging.debug(f"Last article: {last_article}")
+        logging.info(f"Last article: {last_article}")
 
 
 if __name__ == '__main__':
+    patch_http_connection_pool(maxsize=50)
+    patch_https_connection_pool(maxsize=50)
     d = input("Delete everything from DB? (y/N)? ")
     if d.strip().lower() == "y":
         session.execute("DELETE from Pages WHERE 1;")
-        session.execute(f"SET SESSION wait_timeout := {timeout};")
-        session.commit()
+    session.execute(f"SET SESSION wait_timeout := {timeout};")
+    session.commit()
     main()
