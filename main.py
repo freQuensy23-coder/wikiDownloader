@@ -11,6 +11,9 @@ from ThreadingManager import *
 site = pywikibot.Site('ru', 'wikipedia')
 parser = "html5lib"
 
+# DATABASE
+timeout = 2147482
+
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -75,5 +78,6 @@ if __name__ == '__main__':
     d = input("Delete everything from DB? (y/N)? ")
     if d.strip().lower() == "y":
         session.execute("DELETE from Pages WHERE 1;")
+        session.execute(f"SET SESSION wait_timeout := {timeout};")
         session.commit()
     main()
