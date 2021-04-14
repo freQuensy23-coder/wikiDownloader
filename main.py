@@ -11,6 +11,8 @@ from ThreadingManager import *
 site = pywikibot.Site('ru', 'wikipedia')
 parser = "html5lib"
 
+logging.basicConfig(level=logging.DEBUG)
+
 
 def get_pages_data(pages: list, session=session, site=site):
     """Get information about pages and save them to db
@@ -34,7 +36,7 @@ def get_pages(start_from = "") -> list:
     """Get all pages from page of pages (ex. https://ru.wikipedia.org/w/index.php?title=Служебная:Все_страницы )
     :param start_from return articles from one page, starting from start from
     """
-    link = f"https://ru.wikipedia.org/w/index.php?title=Служебная:Все_страницы?from={start_from}"
+    link = f"https://ru.wikipedia.org/wiki/Служебная:Все_страницы?from={start_from}"
     r = requests.get(link)
     soup = BS(r.content, parser)
     pages_area = soup.find("div", {"class": "mw-allpages-body"})
@@ -46,15 +48,27 @@ def get_pages(start_from = "") -> list:
 
 def main():
     global main_link
-    pages = get_pages("")
-    pages_tasks = tasks_divider(tasks=pages)
+    articles = get_pages(start_from="!")
+    pages_tasks = tasks_divider(tasks=articles)
     threads = generate_threads(pages_tasks, get_pages_data)
     for t in threads: # start all threads
         t.start()
-    for t in tqdm(threads):
+    for t in threads:
         t.join()  # Waiting for process end checking
         # TODO Исправить прогрессбар. Он не должен ждать невыолненные потоки.
-    session.commit()
+    for i in tqdm(range(3)):
+        last_article = articles[-1]
+        articles = get_pages(start_from=last_article)[1:]
+        pages_tasks = tasks_divider(tasks=articles)
+        threads = generate_threads(pages_tasks, get_pages_data)
+        for t in threads:  # start all threads
+            t.start()
+        for t in threads:
+            t.join()  # Waiting for process end checking
+            # TODO Исправить прогрессбар. Он не должен ждать невыолненные потоки.
+            # TODO Убрать повторние кода
+        session.commit()
+        logging.debug(f"Last article: {last_article}")
 
 
 if __name__ == '__main__':
